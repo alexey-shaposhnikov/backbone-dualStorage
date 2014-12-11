@@ -186,10 +186,10 @@
             if status is @states.DELETE_FAILED
               @removeGarbage([item]).done(done())
             else
-              data = @mergeFullSync(@parse(response))
-              delete data.status
-              @get(item[@indexedDB.keyPath]).set(data)
-              @indexedDB.store.put(data, done, done)
+              data = @mergeFullSync(model.parse(response))
+              data.status = '' unless data.status
+              model = @get(item[@indexedDB.keyPath]).set(data)
+              @indexedDB.store.put(model.attributes, done, done)
           ), error: ->deferred.reject(item))
         )
       )

@@ -239,10 +239,12 @@
                   if (status === _this.states.DELETE_FAILED) {
                     return _this.removeGarbage([item]).done(done());
                   } else {
-                    data = _this.mergeFullSync(_this.parse(response));
-                    delete data.status;
-                    _this.get(item[_this.indexedDB.keyPath]).set(data);
-                    return _this.indexedDB.store.put(data, done, done);
+                    data = _this.mergeFullSync(model.parse(response));
+                    if (!data.status) {
+                      data.status = '';
+                    }
+                    model = _this.get(item[_this.indexedDB.keyPath]).set(data);
+                    return _this.indexedDB.store.put(model.attributes, done, done);
                   }
                 }),
                 error: function() {
