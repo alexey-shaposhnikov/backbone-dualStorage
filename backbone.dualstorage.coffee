@@ -182,7 +182,8 @@
           console.log CONSOLE_TAG, 'full sync model', item, method
           model.url = model.getUrlForSync(_.result(@, 'url'), method)
 
-          Backbone.ajaxSync(method, model, success: ((response)=>
+          Backbone.ajaxSync(method, model,
+          success: ((response)=>
             if status is @states.DELETE_FAILED
               @removeGarbage([item]).done(done())
             else
@@ -190,7 +191,10 @@
               data.status = '' unless data.status
               model = @get(item[@indexedDB.keyPath]).set(data)
               @indexedDB.store.put(model.attributes, done, done)
-          ), error: ->deferred.reject(item))
+          )
+          error: (item, jqXHR, textStatus, errorThrown)->
+            deferred.reject item, jqXHR, textStatus, errorThrown
+          )
         )
       )
 

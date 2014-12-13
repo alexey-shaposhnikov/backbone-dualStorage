@@ -247,8 +247,8 @@
                     return _this.indexedDB.store.put(model.attributes, done, done);
                   }
                 }),
-                error: function() {
-                  return deferred.reject(item);
+                error: function(jqXHR, textStatus, errorThrown) {
+                  return deferred.reject(jqXHR, textStatus, errorThrown);
                 }
               });
             });
