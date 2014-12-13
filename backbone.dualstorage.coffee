@@ -192,7 +192,7 @@
               model = @get(item[@indexedDB.keyPath]).set(data)
               @indexedDB.store.put(model.attributes, done, done)
           )
-          error: (item, jqXHR, textStatus, errorThrown)->
+          error: (jqXHR, textStatus, errorThrown)->
             deferred.reject item, jqXHR, textStatus, errorThrown
           )
         )
