@@ -193,7 +193,9 @@
               @indexedDB.store.put(model.attributes, done, done)
           )
           error: (jqXHR, textStatus, errorThrown)->
-            Backbone.ajaxSync('read', model)
+            collection = _this
+            model.fetch success: (model)->
+              collection.indexedDB.store.put model.attributes
             deferred.reject item, jqXHR, textStatus, errorThrown
           )
         )

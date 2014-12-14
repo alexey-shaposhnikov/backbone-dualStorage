@@ -248,7 +248,13 @@
                   }
                 }),
                 error: function(jqXHR, textStatus, errorThrown) {
-                  Backbone.ajaxSync('read', model);
+                  var collection;
+                  collection = _this;
+                  model.fetch({
+                    success: function(model) {
+                      return collection.indexedDB.store.put(model.attributes);
+                    }
+                  });
                   return deferred.reject(item, jqXHR, textStatus, errorThrown);
                 }
               });
