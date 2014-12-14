@@ -248,6 +248,7 @@
                   }
                 }),
                 error: function(jqXHR, textStatus, errorThrown) {
+                  Backbone.ajaxSync('read', model);
                   return deferred.reject(item, jqXHR, textStatus, errorThrown);
                 }
               });
