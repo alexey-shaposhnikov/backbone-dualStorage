@@ -249,12 +249,14 @@
                 }),
                 error: function(jqXHR, textStatus, errorThrown) {
                   var collection;
-                  collection = _this;
-                  model.fetch({
-                    success: function(model) {
-                      return collection.indexedDB.store.put(model.attributes);
-                    }
-                  });
+                  if (method === 'update') {
+                    collection = _this;
+                    model.fetch({
+                      success: function(model) {
+                        return collection.indexedDB.store.put(model.attributes);
+                      }
+                    });
+                  }
                   return deferred.reject(item, jqXHR, textStatus, errorThrown);
                 }
               });

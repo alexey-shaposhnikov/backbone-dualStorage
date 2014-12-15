@@ -193,9 +193,10 @@
               @indexedDB.store.put(model.attributes, done, done)
           )
           error: (jqXHR, textStatus, errorThrown)->
-            collection = _this
-            model.fetch success: (model)->
-              collection.indexedDB.store.put model.attributes
+            if method is 'update'
+              collection = _this
+              model.fetch success: (model)->
+                collection.indexedDB.store.put model.attributes
             deferred.reject item, jqXHR, textStatus, errorThrown
           )
         )
