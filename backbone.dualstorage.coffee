@@ -56,7 +56,10 @@
     isDelayed: () ->
       @get('status') in [@states.DELETE_FAILED, @states.UPDATE_FAILED, @states.CREATE_FAILED]
 
+  idb_create = Backbone.IndexedDB.prototype.create
   Backbone.IndexedDB.prototype.create = (model, options) ->
+    unless @dualStorage
+      return idb_create.call(@, model, options)
     model.set('status', states.CREATE_FAILED)
     data = model.attributes;
     @store.put(data, (insertedId) =>
@@ -64,19 +67,28 @@
       options.success(data)
     , options.error);
 
+  idb_update = Backbone.IndexedDB.prototype.update
   Backbone.IndexedDB.prototype.update = (model, options) ->
+    unless @dualStorage
+      return idb_update.call(@, model, options)
     if model.hasRemoteId() then model.set('status', states.UPDATE_FAILED)
     data = model.attributes
     @store.put(data, options.success, options.error);
 
+  idb_getAll = Backbone.IndexedDB.prototype.getAll
   Backbone.IndexedDB.prototype.getAll = (options) ->
+    unless @dualStorage
+      return idb_getAll.call(@, options)
     data = []
     @iterate((item) ->
       if item.status != states.DELETE_FAILED
         data.push(item)
     , onEnd: () ->options.success(data))
 
+  idb_destroy = Backbone.IndexedDB.prototype.destroy
   Backbone.IndexedDB.prototype.destroy = (model, options) ->
+    unless @dualStorage
+      return idb_destroy.call(@, model, options)
     if model.isNew()
       return false
     model.set('status', states.DELETE_FAILED)

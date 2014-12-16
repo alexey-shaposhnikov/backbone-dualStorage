@@ -8,7 +8,7 @@
       return factory(Backbone);
     }
   })(this, function(Backbone) {
-    var CONSOLE_TAG, eventNames, states, wrapError;
+    var CONSOLE_TAG, eventNames, idb_create, idb_destroy, idb_getAll, idb_update, states, wrapError;
     CONSOLE_TAG = "backbone-dualStorage";
     states = {
       SYNCHRONIZED: 'SYNCHRONIZED',
@@ -56,8 +56,12 @@
         return (_ref = this.get('status')) === this.states.DELETE_FAILED || _ref === this.states.UPDATE_FAILED || _ref === this.states.CREATE_FAILED;
       }
     });
+    idb_create = Backbone.IndexedDB.prototype.create;
     Backbone.IndexedDB.prototype.create = function(model, options) {
       var data;
+      if (!this.dualStorage) {
+        return idb_create.call(this, model, options);
+      }
       model.set('status', states.CREATE_FAILED);
       data = model.attributes;
       return this.store.put(data, (function(_this) {
@@ -67,16 +71,24 @@
         };
       })(this), options.error);
     };
+    idb_update = Backbone.IndexedDB.prototype.update;
     Backbone.IndexedDB.prototype.update = function(model, options) {
       var data;
+      if (!this.dualStorage) {
+        return idb_update.call(this, model, options);
+      }
       if (model.hasRemoteId()) {
         model.set('status', states.UPDATE_FAILED);
       }
       data = model.attributes;
       return this.store.put(data, options.success, options.error);
     };
+    idb_getAll = Backbone.IndexedDB.prototype.getAll;
     Backbone.IndexedDB.prototype.getAll = function(options) {
       var data;
+      if (!this.dualStorage) {
+        return idb_getAll.call(this, options);
+      }
       data = [];
       return this.iterate(function(item) {
         if (item.status !== states.DELETE_FAILED) {
@@ -88,8 +100,12 @@
         }
       });
     };
+    idb_destroy = Backbone.IndexedDB.prototype.destroy;
     Backbone.IndexedDB.prototype.destroy = function(model, options) {
       var data;
+      if (!this.dualStorage) {
+        return idb_destroy.call(this, model, options);
+      }
       if (model.isNew()) {
         return false;
       }
