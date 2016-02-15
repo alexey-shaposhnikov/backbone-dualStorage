@@ -164,6 +164,73 @@ describe('Backbone.DualCollection', function () {
 
   });
 
+  it('should fetch and merge a collection', function( done ){
+
+    var count = 1;
+    var resp1 = [
+      { id: 1, foo: 'bar' },
+      { id: 2, foo: 'baz' },
+      { id: 3, foo: 'boo' }
+    ];
+    var resp2 = [
+      { id: 1, foo: 'bar' },
+      { id: 3, foo: 'baz' },
+      { id: 4, foo: 'boo' }
+    ];
+
+    // mock bb.ajax
+    Backbone.ajax = function( options ){
+      options = options || {};
+      expect( options.type ).to.equal('GET');
+      var dfd = $.Deferred();
+      _.delay( function(){
+        var resp = count === 1 ? resp1 : resp2;
+        count++;
+        if( options.success ){
+          options.success(resp);
+        }
+        dfd.resolve(resp);
+      }, 500 );
+      return dfd;
+    };
+
+    var collection = new Backbone.DualCollection();
+    collection.url = 'http://test';
+
+    collection.fetch({
+      remote: true,
+      success: function( collection, response, options ){
+        expect( collection ).to.have.length( 3 );
+        var ids = collection.map( function( model ) {
+          expect( model.isNew() ).to.be.false;
+          return model.get('id');
+        });
+        expect( ids ).eqls([ 1, 2, 3 ]);
+
+        collection.fetch({
+          remote: true,
+          success: function( collection, response, options ){
+            expect( collection ).to.have.length( 4 );
+
+            var ids = collection.map( function( model ) {
+              expect( model.isNew() ).to.be.false;
+              return model.get('id');
+            });
+            expect( ids ).eqls([ 1, 2, 3, 4 ]);
+
+            var vals = collection.map( function( model ) {
+              return model.get('foo');
+            });
+            expect( vals ).eqls([ 'bar', 'baz', 'baz', 'boo' ]);
+
+            done();
+          }
+        });
+      }
+    });
+
+  });
+
   /**
    * Clear test database
    */
