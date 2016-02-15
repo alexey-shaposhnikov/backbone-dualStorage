@@ -37,7 +37,7 @@ module.exports = bb.DualCollection = IDBCollection.extend({
     return IDBCollection.prototype.fetch.call(this, opts)
       .then( function( resp ){
         opts.remote = false;
-        return self.save( [], opts )
+        return self.save( resp, opts )
           .done( function() {
             return resp;
           });
@@ -53,7 +53,7 @@ module.exports = bb.DualCollection = IDBCollection.extend({
     if( options.remote ){
       return this.remoteSave( models, options );
     }
-    return this.db.saveAll()
+    return this.db.putBatch( models )
       .then( function(){
         return self.fetch();
       });
@@ -67,17 +67,21 @@ module.exports = bb.DualCollection = IDBCollection.extend({
     resp = resp && resp[this.name] ? resp[this.name] : resp;
     if( options.remote ){
       _.each( resp, function( attrs ){
-        var idAttribute = this.model.prototype.idAttribute;
-        var remoteIdAttribute = this.model.prototype.remoteIdAttribute;
-        var attr = {};
-        attr[remoteIdAttribute] = attrs[remoteIdAttribute];
-        var model = this.findWhere(attr);
-        if( model ){
-          attrs[idAttribute] = model.id;
-        }
+        this.mergeAttributesByRemoteId( attrs );
       }.bind(this));
     }
     return IDBCollection.prototype.parse.call( this, resp, options );
+  },
+
+  mergeAttributesByRemoteId: function( attrs ){
+    var idAttribute = this.model.prototype.idAttribute;
+    var remoteIdAttribute = this.model.prototype.remoteIdAttribute;
+    var attr = {};
+    attr[remoteIdAttribute] = attrs[remoteIdAttribute];
+    var model = this.findWhere(attr);
+    if( model ){
+      attrs[idAttribute] = model.id;
+    }
   }
 
 });

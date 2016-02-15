@@ -164,7 +164,7 @@ describe('Backbone.DualCollection', function () {
 
   });
 
-  it('should fetch and merge a collection', function( done ){
+  it('should fetch and merge a remote collection', function( done ){
 
     var count = 1;
     var resp1 = [
