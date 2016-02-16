@@ -19,7 +19,8 @@ module.exports = bb.DualCollection = IDBCollection.extend({
     //'patch'  : 'UPDATE_FAILED',
     'update' : 'UPDATE_FAILED',
     'create' : 'CREATE_FAILED',
-    'delete' : 'DELETE_FAILED'
+    'delete' : 'DELETE_FAILED',
+    'read'   : 'READ_FAILED'
   },
 
   fetch: function( options ){
@@ -61,21 +62,55 @@ module.exports = bb.DualCollection = IDBCollection.extend({
     resp = resp && resp[this.name] ? resp[this.name] : resp;
     if( options.remote ){
       _.each( resp, function( attrs ){
-        this.mergeAttributesOnRemoteId( attrs );
+        this.mergeModels( attrs, options );
       }.bind(this));
     }
     return IDBCollection.prototype.parse.call( this, resp, options );
   },
 
-  mergeAttributesOnRemoteId: function( attrs ){
-    var idAttribute = this.model.prototype.idAttribute;
-    var remoteIdAttribute = this.model.prototype.remoteIdAttribute;
-    var attr = {};
+  mergeModels: function( attrs, options ){
+    var model, attr = {},
+      idAttribute = this.model.prototype.idAttribute,
+      remoteIdAttribute = this.model.prototype.remoteIdAttribute;
+
     attr[remoteIdAttribute] = attrs[remoteIdAttribute];
-    var model = this.findWhere(attr);
+    model = this.findWhere(attr);
+
     if( model ){
       attrs[idAttribute] = model.id;
+      if( options.remoteIds &&
+        ( attrs['last_updated'] > model.get('last_updated') ) ){
+        attrs['_state'] = this.states.read;
+      }
     }
+    
+    if( !model && options.remoteIds ){
+      attrs['_state'] = this.states.read;
+    }
+
+  },
+
+  fetchRemoteIds: function( last_update, options ){
+    var url = _.result(this, 'url') + '/ids';
+    options = _.defaults({
+      url: url,
+      remote: true,
+      remoteIds: true,
+      data: {
+        fields: ['id', 'updated_at'],
+        filter: {
+          limit: -1,
+          updated_at_min: last_update
+        }
+      }
+    }, options);
+
+    return this.fetch(options);
+  },
+
+  fetchUpdatedIds: function( options ){
+    var last_update = _.compact( this.pluck('updated_at') ).sort().pop();
+    return this.fetchRemoteIds( last_update, options );
   }
 
 });

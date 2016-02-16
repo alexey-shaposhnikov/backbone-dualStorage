@@ -242,6 +242,91 @@ describe('Backbone.DualCollection', function () {
 
   });
 
+  it('should fetch all remote ids', function( done ){
+
+    // mock bb.ajax
+    Backbone.ajax = function( options ){
+      options = options || {};
+      expect( options.type ).to.equal('GET');
+      var dfd = $.Deferred();
+      _.delay( function(){
+        var resp = {
+          nested: [
+            { id: 1 }, { id: 2 }, { id: 3 }
+          ]
+        };
+        if( options.success ){
+          options.success(resp);
+        }
+        dfd.resolve(resp);
+      }, 500 );
+      return dfd;
+    };
+
+    var collection = new Backbone.DualCollection();
+    collection.url = 'http://test';
+    collection.name = 'nested';
+
+    collection.fetchRemoteIds(null, {
+      success: function(){
+        expect( collection ).to.have.length( 3 );
+        collection.each( function( model) {
+          expect( model.isNew()).to.be.false;
+          expect( model.get('_state')).equals( collection.states.read );
+        });
+        done();
+      }
+    });
+
+  });
+
+  it('should fetch updated models from server', function( done ){
+
+    // mock bb.ajax
+    Backbone.ajax = function( options ){
+      options = options || {};
+      expect( options.type ).to.equal('GET');
+      var dfd = $.Deferred();
+      _.delay( function(){
+        var resp = {
+          nested: [
+            { id: 2, last_updated: '2016-01-14T13:15:04Z' },
+            { id: 4, last_updated: '2016-01-12T13:15:04Z' }
+          ]
+        };
+        if( options.success ){
+          options.success(resp);
+        }
+        dfd.resolve(resp);
+      }, 500 );
+      return dfd;
+    };
+
+    var collection = new Backbone.DualCollection();
+    collection.url = 'http://test';
+    collection.name = 'nested';
+
+    collection.save([
+      { id: 1, last_updated: '2016-01-04T13:15:04Z' },
+      { id: 2, last_updated: '2016-01-11T13:15:04Z' },
+      { id: 3, last_updated: '2015-01-04T13:15:04Z' }
+    ]).then(function(){
+
+        collection.fetchUpdatedIds({
+          success: function(){
+            expect( collection ).to.have.length( 4 );
+            var states = collection.map( function(model) {
+              return model.get('_state');
+            });
+            expect( states ).eqls([ undefined, 'READ_FAILED', undefined, 'READ_FAILED' ]);
+            done();
+          }
+        });
+
+      });
+
+  });
+
   /**
    * Clear test database
    */
