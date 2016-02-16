@@ -145,14 +145,16 @@ describe('Backbone.DualCollection', function () {
 
   });
 
-  it('should be compatible with nested APIs', function( done ){
+  it('model should be compatible with nested APIs', function( done ){
 
     // mock bb.ajax
     Backbone.ajax = function( options ){
       options = options || {};
       var payload = JSON.parse( options.data );
-      expect( Object.keys(payload) ).to.eql(['test']);
-      done();
+      expect( Object.keys(payload) ).to.eql(['test'] );
+      return {
+        'test': { foo: 'bar' }
+      };
     };
 
     var collection = new Backbone.DualCollection();
@@ -160,7 +162,13 @@ describe('Backbone.DualCollection', function () {
 
     var model = collection.add({ foo: 'bar' });
     model.name = 'test';
-    model.save({}, { remote: true });
+    model.save({}, {
+      remote: true,
+      success: function(m){
+        expect( m ).eqls( model );
+        done();
+      }
+    });
 
   });
 
@@ -172,11 +180,13 @@ describe('Backbone.DualCollection', function () {
       { id: 2, foo: 'baz' },
       { id: 3, foo: 'boo' }
     ];
-    var resp2 = [
-      { id: 1, foo: 'bar' },
-      { id: 3, foo: 'baz' },
-      { id: 4, foo: 'boo' }
-    ];
+    var resp2 = {
+        nested: [
+        { id: 1, foo: 'bar' },
+        { id: 3, foo: 'baz' },
+        { id: 4, foo: 'boo' }
+      ]
+    };
 
     // mock bb.ajax
     Backbone.ajax = function( options ){
@@ -196,6 +206,7 @@ describe('Backbone.DualCollection', function () {
 
     var collection = new Backbone.DualCollection();
     collection.url = 'http://test';
+    collection.name = 'nested';
 
     collection.fetch({
       remote: true,

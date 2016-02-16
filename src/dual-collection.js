@@ -37,7 +37,7 @@ module.exports = bb.DualCollection = IDBCollection.extend({
     return IDBCollection.prototype.fetch.call(this, opts)
       .then( function( resp ){
         opts.remote = false;
-        return self.save( resp, opts )
+        return self.save( null, opts )
           .done( function() {
             return resp;
           });
@@ -48,32 +48,26 @@ module.exports = bb.DualCollection = IDBCollection.extend({
   },
 
   save: function( models, options ){
-    var self = this;
     options = options || {};
     if( options.remote ){
       return this.remoteSave( models, options );
     }
-    return this.db.putBatch( models )
-      .then( function(){
-        return self.fetch();
-      });
+    return IDBCollection.prototype.save.apply( this, arguments );
   },
 
-  remoteSave: function(){
-    // bulk, check hasChanged?
-  },
+  remoteSave: function(){},
 
   parse: function( resp, options ){
     resp = resp && resp[this.name] ? resp[this.name] : resp;
     if( options.remote ){
       _.each( resp, function( attrs ){
-        this.mergeAttributesByRemoteId( attrs );
+        this.mergeAttributesOnRemoteId( attrs );
       }.bind(this));
     }
     return IDBCollection.prototype.parse.call( this, resp, options );
   },
 
-  mergeAttributesByRemoteId: function( attrs ){
+  mergeAttributesOnRemoteId: function( attrs ){
     var idAttribute = this.model.prototype.idAttribute;
     var remoteIdAttribute = this.model.prototype.remoteIdAttribute;
     var attr = {};
