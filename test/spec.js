@@ -10,15 +10,21 @@ describe('Backbone.DualCollection', function () {
 
     collection.create({ foo: 'bar' }, {
       wait: true,
+      special: true,
       success: function( model, response, options ){
         expect( model.isNew() ).to.be.false;
         expect( model.id ).to.equal( response.local_id );
         expect( model.get('_state') ).to.equal( collection.states.create );
+        expect( response.foo ).to.equal( 'bar' );
+        expect( options.special ).to.be.true;
 
         collection.fetch({
           reset: true,
-          success: function(){
+          special: true,
+          success: function( collection, response, options ){
             expect( collection.at(0).attributes ).to.eql( model.attributes );
+            expect( response ).to.eql( [ model.attributes ] );
+            expect( options.special ).to.be.true;
             done();
           }
         });
@@ -34,14 +40,20 @@ describe('Backbone.DualCollection', function () {
       //wait: true,
       success: function( model, response, options ){
         model.save({ foo: 'baz' }, {
+          special: true,
           success: function( model, response, options ){
             expect( model.get('_state') ).to.equal( collection.states.create );
             expect( model.get('foo') ).to.equal( 'baz' );
+            expect( response.foo ).to.equal( 'baz' );
+            expect( options.special ).to.be.true;
 
             collection.fetch({
               reset: true,
-              success: function(){
-                expect( collection.at(0).attributes ).to.eql( model.attributes );
+              special: true,
+              success: function( collection, response, options ){
+                expect( collection.at(0).attributes ).eqls( model.attributes );
+                expect( response ).to.eql( [ model.attributes ] );
+                expect( options.special ).to.be.true;
                 done();
               }
             });
@@ -78,15 +90,21 @@ describe('Backbone.DualCollection', function () {
     collection.create({ foo: 'bar' }, {
       wait: true,
       remote: true,
+      special: true,
       success: function( model, response, options ){
         expect( model.isNew() ).to.be.false;
         expect( model.get('id') ).to.equal( 1 );
         expect( model.get('_state') ).to.be.undefined;
+        expect( response ).eqls( model.attributes );
+        expect( options.special ).to.be.true;
 
         collection.fetch({
           reset: true,
-          success: function(){
+          special: true,
+          success: function( collection, response, options ){
             expect( collection.at(0).attributes ).to.eql( model.attributes );
+            expect( response ).to.eql( [ model.attributes ] );
+            expect( options.special ).to.be.true;
             done();
           }
         });
@@ -127,14 +145,20 @@ describe('Backbone.DualCollection', function () {
         model.save({ foo: 'baz' }, {
           remote: true,
           wait: true,
+          special: true,
           success: function( model, response, options ){
             expect( model.get('_state') ).to.be.undefined;
             expect( model.get('foo') ).to.equal( 'baz' );
+            expect( response ).to.eql( model.attributes );
+            expect( options.special ).to.be.true;
 
             collection.fetch({
               reset: true,
-              success: function(){
+              special: true,
+              success: function( collection, response, options ){
                 expect( collection.at(0).attributes ).to.eql( model.attributes );
+                expect( response ).to.eql( [ model.attributes ] );
+                expect( options.special ).to.be.true;
                 done();
               }
             });
@@ -147,14 +171,16 @@ describe('Backbone.DualCollection', function () {
 
   it('model should be compatible with nested APIs', function( done ){
 
+    var ajaxResponse = {
+      'test': { foo: 'bar' }
+    };
+
     // mock bb.ajax
     Backbone.ajax = function( options ){
       options = options || {};
       var payload = JSON.parse( options.data );
       expect( Object.keys(payload) ).to.eql(['test'] );
-      return {
-        'test': { foo: 'bar' }
-      };
+      return ajaxResponse;
     };
 
     var collection = new Backbone.DualCollection();
@@ -164,8 +190,14 @@ describe('Backbone.DualCollection', function () {
     model.name = 'test';
     model.save({}, {
       remote: true,
-      success: function(m){
+      special: true,
+      success: function( m, response, options ){
         expect( m ).eqls( model );
+
+        // note: response is coming from idb not ajax
+        // expect( response ).eqls( ajaxResponse );
+
+        expect( options.special ).to.be.true;
         done();
       }
     });
@@ -210,30 +242,22 @@ describe('Backbone.DualCollection', function () {
 
     collection.fetch({
       remote: true,
+      special: true,
       success: function( collection, response, options ){
         expect( collection ).to.have.length( 3 );
-        var ids = collection.map( function( model ) {
-          expect( model.isNew() ).to.be.false;
-          return model.get('id');
-        });
-        expect( ids ).eqls([ 1, 2, 3 ]);
+        expect( collection.map('local_id') ).to.not.be.empty;
+        expect( _.map(response, 'id')).eqls( [1, 2, 3] );
+        expect( options.special ).to.be.true;
 
         collection.fetch({
           remote: true,
+          special: true,
           success: function( collection, response, options ){
             expect( collection ).to.have.length( 4 );
-
-            var ids = collection.map( function( model ) {
-              expect( model.isNew() ).to.be.false;
-              return model.get('id');
-            });
-            expect( ids ).eqls([ 1, 2, 3, 4 ]);
-
-            var vals = collection.map( function( model ) {
-              return model.get('foo');
-            });
-            expect( vals ).eqls([ 'bar', 'baz', 'baz', 'boo' ]);
-
+            expect( collection.map('local_id') ).to.not.be.empty;
+            expect( collection.map('foo') ).eqls([ 'bar', 'baz', 'baz', 'boo' ]);
+            expect( _.map(response, 'id') ).eqls( [1, 3, 4] );
+            expect( options.special ).to.be.true;
             done();
           }
         });
@@ -268,19 +292,21 @@ describe('Backbone.DualCollection', function () {
     collection.name = 'nested';
 
     collection.fetchRemoteIds(null, {
-      success: function(){
+      special: true,
+      success: function( collection, response, options ){
         expect( collection ).to.have.length( 3 );
-        collection.each( function( model) {
-          expect( model.isNew()).to.be.false;
-          expect( model.get('_state')).equals( collection.states.read );
-        });
+        expect( collection.map('local_id') ).to.not.be.empty;
+        var read = collection.states.read;
+        expect( collection.map('_state') ).eqls( [read, read, read] );
+        expect( _.map(response, 'id') ).eqls( [1, 2, 3] );
+        expect( options.special ).to.be.true;
         done();
       }
     });
 
   });
 
-  it('should fetch updated models from server', function( done ){
+  it('should fetch updated ids from the server', function( done ){
 
     // mock bb.ajax
     Backbone.ajax = function( options ){
@@ -306,24 +332,75 @@ describe('Backbone.DualCollection', function () {
     collection.url = 'http://test';
     collection.name = 'nested';
 
-    collection.save([
+    collection.saveBatch([
       { id: 1, last_updated: '2016-01-04T13:15:04Z' },
       { id: 2, last_updated: '2016-01-11T13:15:04Z' },
       { id: 3, last_updated: '2015-01-04T13:15:04Z' }
     ]).then(function(){
+      expect( collection ).to.have.length( 3 );
 
-        collection.fetchUpdatedIds({
-          success: function(){
-            expect( collection ).to.have.length( 4 );
-            var states = collection.map( function(model) {
-              return model.get('_state');
-            });
-            expect( states ).eqls([ undefined, 'READ_FAILED', undefined, 'READ_FAILED' ]);
-            done();
-          }
-        });
-
+      collection.fetchUpdatedIds({
+        special: true,
+        success: function( collection, response, options ){
+          expect( collection ).to.have.length( 4 );
+          var read = collection.states.read;
+          expect( collection.map('_state') ).eqls([ undefined, read, undefined, read ]);
+          expect( _.map(response, 'id') ).eqls( [ 2, 4 ] );
+          expect( options.special ).to.be.true;
+          done();
+        }
       });
+
+    });
+
+  });
+
+  it('should remove garbage', function( done ){
+
+    // mock bb.ajax
+    Backbone.ajax = function( options ){
+      options = options || {};
+      expect( options.type ).to.equal('GET');
+      var dfd = $.Deferred();
+      _.delay( function(){
+        var resp = {
+          nested: [
+            { id: 1 },
+            { id: 4 }
+          ]
+        };
+        if( options.success ){
+          options.success(resp);
+        }
+        dfd.resolve(resp);
+      }, 500 );
+      return dfd;
+    };
+
+    var collection = new Backbone.DualCollection();
+    collection.url = 'http://test';
+    collection.name = 'nested';
+
+    collection.saveBatch([
+      { id: 1 },
+      { id: 2, _state: 'UPDATE_FAILED' },
+      { id: 3 },
+      { }
+    ]).then(function(){
+      expect( collection ).to.have.length(4);
+
+      collection.fetchRemoteIds(null, {
+        remove: true,
+        success: function(){
+          expect( collection ).to.have.length( 3 );
+          var create = collection.states.create;
+          var read = collection.states.read;
+          expect( collection.map('_state') ).eqls([ undefined, create, read ]);
+          done();
+        }
+      });
+
+    });
 
   });
 
