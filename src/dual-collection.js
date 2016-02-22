@@ -35,7 +35,6 @@ module.exports = bb.DualCollection = IDBCollection.extend({
     options = options || {};
     var self = this;
     var opts = _.extend({}, options, {
-      parse: true,
       remove: false,
       remote: true,
       success: undefined
@@ -43,7 +42,7 @@ module.exports = bb.DualCollection = IDBCollection.extend({
 
     return this.sync('read', this, opts)
       .then( function( response ){
-        response = opts.parse ? self.parse( response, opts ) : response;
+        response = self.parse( response, opts );
         if( ! options.remove ){
           opts.success = options.success;
         }
@@ -70,7 +69,7 @@ module.exports = bb.DualCollection = IDBCollection.extend({
       if( model instanceof bb.Model ){
         model = model.toJSON();
       }
-      if( ! model[this.model.prototype.remoteIdAttribute] ){
+      if( ! model[ this.getRemoteIdAttribute() ] ){
         model._state = this.states.create;
       }
       return model;
@@ -84,38 +83,31 @@ module.exports = bb.DualCollection = IDBCollection.extend({
     options = options || {};
     resp = resp && resp[this.name] ? resp[this.name] : resp;
     if( options.remote ){
-      _.each( resp, function( attrs ){
-        this.mergeModels( attrs, options );
+      resp = _.map( resp, function( attrs ){
+        return this.mergeModels( attrs, options );
       }.bind(this));
     }
     return IDBCollection.prototype.parse.call( this, resp, options );
   },
 
-  /* jshint -W071, -W074 */
+  /* jshint -W074 */
   mergeModels: function( attrs, options ){
-    var model, attr = {},
-      idAttribute = this.model.prototype.idAttribute,
-      remoteIdAttribute = this.model.prototype.remoteIdAttribute;
+    var model = this.findByRemoteId( attrs );
 
-    attr[remoteIdAttribute] = attrs[remoteIdAttribute];
-    model = this.findWhere(attr);
-
-    if( model ){
-      if( model.id ){
-        attrs[idAttribute] = model.id;
-      }
-      if( options.remoteIds &&
-        ( attrs['last_updated'] > model.get('last_updated') ) ){
+    if( options.remoteIds ){
+      if( ! model || attrs['last_updated'] > model.get('last_updated') ){
         attrs['_state'] = this.states.read;
       }
     }
 
-    if( !model && options.remoteIds ){
-      attrs['_state'] = this.states.read;
+    if( model && model.id ){
+      //attrs = _.extend( model.toJSON(), attrs );
+      attrs = _.extend( model.attributes, attrs );
     }
 
+    return attrs;
   },
-  /* jshint +W071, +W074 */
+  /* jshint +W074 */
 
   fetchRemoteIds: function( last_update, options ){
     var url = _.result(this, 'url') + '/ids';
@@ -134,14 +126,6 @@ module.exports = bb.DualCollection = IDBCollection.extend({
     });
 
     return this.fetchRemote(options);
-      //.then( function( resp ){
-      //  if( options.remove ){
-      //    var ids = _.map( resp, function ( attrs ){
-      //      return attrs.id;
-      //    });
-      //    return self.removeGarbage( ids, options );
-      //  }
-      //});
   },
 
   fetchUpdatedIds: function( options ){
@@ -151,7 +135,7 @@ module.exports = bb.DualCollection = IDBCollection.extend({
 
   removeGarbage: function( remoteIds, options ){
     var self = this, models,
-      remoteIdAttribute = this.model.prototype.remoteIdAttribute;
+      remoteIdAttribute = this.getRemoteIdAttribute();
 
     remoteIds = _.isArray( remoteIds ) ? remoteIds : [remoteIds];
     this.fetch()
@@ -166,6 +150,21 @@ module.exports = bb.DualCollection = IDBCollection.extend({
 
   removeBatch: function(){
     return IDBCollection.prototype.removeBatch.apply( this, arguments );
+  },
+
+  getIdAttribute: function(){
+    return 'local_id';
+  },
+
+  getRemoteIdAttribute: function(){
+    return 'id';
+  },
+
+  findByRemoteId: function( attrs ){
+    var attr = {};
+    var remoteIdAttribute = this.getRemoteIdAttribute();
+    attr[remoteIdAttribute] = attrs[remoteIdAttribute];
+    return this.findWhere(attr);
   }
 
 });

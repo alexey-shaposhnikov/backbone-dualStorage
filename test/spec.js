@@ -306,6 +306,63 @@ describe('Backbone.DualCollection', function () {
 
   });
 
+  it('should fetch and merge all remote ids', function( done ){
+
+    // mock bb.ajax
+    Backbone.ajax = function( options ){
+      options = options || {};
+      expect( options.type ).to.equal('GET');
+      var dfd = $.Deferred();
+      _.delay( function(){
+        var resp = {
+          nested: [
+            { id: 1 }, { id: 2 }, { id: 3 }
+          ]
+        };
+        if( options.success ){
+          options.success(resp);
+        }
+        dfd.resolve(resp);
+      }, 500 );
+      return dfd;
+    };
+
+    var collection = new Backbone.DualCollection();
+    collection.url = 'http://test';
+    collection.name = 'nested';
+
+    collection.saveBatch([
+      { id: 1, foo: 'bar' },
+      { id: 2 }
+    ]).then(function(){
+      expect( collection ).to.have.length( 2 );
+
+      collection.fetchUpdatedIds({
+        special: true,
+        success: function( collection, response, options ){
+          expect( collection ).to.have.length( 3 );
+
+          var read = collection.states.read;
+          expect( collection.map('_state') ).eqls([ undefined, undefined, read ]);
+          expect( options.special ).to.be.true;
+
+          collection.fetch({
+            reset: true,
+            success: function( collection ){
+              var model = collection.findWhere({ id: 1 });
+              expect( model.get('foo') ).equals('bar');
+
+              done();
+            }
+          });
+
+        }
+      });
+
+    });
+
+  });
+
   it('should fetch updated ids from the server', function( done ){
 
     // mock bb.ajax
@@ -333,7 +390,7 @@ describe('Backbone.DualCollection', function () {
     collection.name = 'nested';
 
     collection.saveBatch([
-      { id: 1, last_updated: '2016-01-04T13:15:04Z' },
+      { id: 1, last_updated: '2016-01-04T13:15:04Z', foo: 'bar' },
       { id: 2, last_updated: '2016-01-11T13:15:04Z' },
       { id: 3, last_updated: '2015-01-04T13:15:04Z' }
     ]).then(function(){
